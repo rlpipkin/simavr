@@ -92,6 +92,33 @@ void avr_special_deinit( avr_t* avr, void * data)
 	uart_pty_stop(&uart_pty);
 }
 
+static void rlp_sim_fifo_wr(avr_t * avr, avr_io_addr_t addr, uint8_t v, void * param)
+{
+	printf ( "Simulated fifo received 0x%02x : %c | 0x%02x : %c\n", v, v, v>>1,v>>1 );
+}
+
+
+int mybuffer = 0;
+static const uint8_t msg1[] =
+{
+		0x7e, 0x82, 0xa0, 0xb4, 0x9a, 0x88, 0x9a, 0x60, 0x9c, 0x9e, 0x86, 0x82, 0x98,
+		0x98, 0x60, 0xae, 0x92, 0x88, 0x8a, 0x62, 0x40, 0x62, 0xae, 0x92, 0x88, 0x8a,
+		0x64, 0x40, 0x65, 0x03, 0xf0, 0x74, 0x65, 0x73, 0x74, 0x69, 0xc0, 0xf6, 0x7e
+};
+
+static uint8_t rlp_sim_fifo_rd(avr_t * avr, avr_io_addr_t addr, void * param)
+{
+	uint8_t c;
+	if ( mybuffer < sizeof(msg1) ) {
+		c = msg1[mybuffer++];
+		printf ( "Simulated fifo returned 0x%02x\n", c );
+	} else {
+		c = 0;
+	}
+	return ( c );
+}
+
+
 int main(int argc, char *argv[])
 {
 	struct avr_flash flash_data;
@@ -148,6 +175,10 @@ int main(int argc, char *argv[])
 	/* end of flash, remember we are writing /code/ */
 	avr->codeend = avr->flashend;
 	avr->log = 1 + verbose;
+
+	avr_register_io_write(avr, 0xff, rlp_sim_fifo_wr, NULL);
+	avr_register_io_read(avr, 0xfe, rlp_sim_fifo_rd, NULL);
+
 
 	// even if not setup at startup, activate gdb if crashing
 	avr->gdb_port = 1234;
