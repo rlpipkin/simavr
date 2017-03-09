@@ -92,9 +92,33 @@ void avr_special_deinit( avr_t* avr, void * data)
 	uart_pty_stop(&uart_pty);
 }
 
+int simTxfd = 0;
+int simRxfd = 0;
+static void rlp_sim_fifo_init( uint8_t nodeId ) {
+	char rxPath[80];
+	char txPath[80];
+
+	sprintf ( &rxPath[0], "/home/rpipkin/aprs/virtspoon/io/node%d-rx", nodeId );
+	sprintf ( &txPath[0], "/home/rpipkin/aprs/virtspoon/io/node%d-tx", nodeId );
+
+	struct stat tempbuffer;
+	if ( stat( txPath, &tempbuffer ) != 0 ) {
+		mknod( txPath, S_IFIFO | 0666, 0 );
+	}
+
+	if ( stat( rxPath, &tempbuffer ) != 0 ) {
+		mknod( rxPath, S_IFIFO | 0666, 0 );
+	}
+
+
+	simTxfd = open( txPath, O_RDWR | O_NONBLOCK );
+	simRxfd = open( rxPath, O_RDWR | O_NONBLOCK );
+}
+
 static void rlp_sim_fifo_wr(avr_t * avr, avr_io_addr_t addr, uint8_t v, void * param)
 {
 	printf ( "Simulated fifo received 0x%02x : %c | 0x%02x : %c\n", v, v, v>>1,v>>1 );
+	write ( simTxfd, &v, 1 );
 }
 
 
@@ -128,7 +152,10 @@ int main(int argc, char *argv[])
 	uint32_t freq = 16000000;
 	int debug = 0;
 	int verbose = 0;
+	int node = 1;
 
+
+#if 0
 	for (int i = 1; i < argc; i++) {
 		if (!strcmp(argv[i] + strlen(argv[i]) - 4, ".hex"))
 			strncpy(boot_path, argv[i], sizeof(boot_path));
@@ -141,6 +168,31 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 	}
+#else
+	int c;
+	while ( (c = getopt( argc, argv, "dvn:f:")) != -1) {
+		switch (c) {
+		case 'f':
+			printf ( "args: %s\n", optarg );
+			if (!strcmp(optarg + strlen(optarg) - 4, ".hex"))
+				strncpy(boot_path, optarg, sizeof(boot_path));
+			break;
+		case 'd':
+			debug++;
+			break;
+		case 'v':
+			verbose++;
+			break;
+		case 'n':
+			node = atoi(optarg);
+			break;
+		case '?':
+		default:
+			fprintf ( stderr, "%s: invalid argument %c\n", argv[0], (char) c );
+			exit(1);
+		}
+	}
+#endif
 
 	avr = avr_make_mcu_by_name(mmcu);
 	if (!avr) {
@@ -176,6 +228,9 @@ int main(int argc, char *argv[])
 	avr->codeend = avr->flashend;
 	avr->log = 1 + verbose;
 
+
+	//... handle simulator
+	rlp_sim_fifo_init( node );
 	avr_register_io_write(avr, 0xff, rlp_sim_fifo_wr, NULL);
 	avr_register_io_read(avr, 0xfe, rlp_sim_fifo_rd, NULL);
 
