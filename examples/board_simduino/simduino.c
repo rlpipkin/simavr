@@ -123,24 +123,55 @@ static void rlp_sim_fifo_wr(avr_t * avr, avr_io_addr_t addr, uint8_t v, void * p
 }
 
 
-int mybuffer = 0;
-static const uint8_t msg1[] =
+
+
+char fifoCache [ 2048 ];
+int cacheBuff = 0;
+int readBuff = 0;
+
+
+static uint8_t rlp_sim_fifo_dr(avr_t * avr, avr_io_addr_t addr, void * param)
 {
-		0x7e, 0x82, 0xa0, 0xb4, 0x9a, 0x88, 0x9a, 0x60, 0x9c, 0x9e, 0x86, 0x82, 0x98,
-		0x98, 0x60, 0xae, 0x92, 0x88, 0x8a, 0x62, 0x40, 0x62, 0xae, 0x92, 0x88, 0x8a,
-		0x64, 0x40, 0x65, 0x03, 0xf0, 0x74, 0x65, 0x73, 0x74, 0x69, 0xc0, 0xf6, 0x7e
-};
+	// to maintain first in first out we only read 1 group at a time to avoid managing a circular buffer
+	// if data is already pending just return data ready and don't go to the os fifo
+	if ( cacheBuff > 0) {
+		return 0xff;
+	}
+
+	// check for more data from the os
+	int retVal = read ( simRxfd, &fifoCache[cacheBuff], (2048 - cacheBuff));
+	if ( retVal > 0 ) {
+		cacheBuff = retVal;
+		readBuff = 0;
+		return 0xff;
+	}
+
+	// no data
+	return 0;
+}
 
 static uint8_t rlp_sim_fifo_rd(avr_t * avr, avr_io_addr_t addr, void * param)
 {
-
-	uint8_t c = 0;
-	if ( mybuffer < sizeof(msg1) ) {
-		c = msg1[mybuffer++];
-		printf ( "Simulated fifo returned 0x%02x\n", c );
+	if ( cacheBuff == 0 ) {
+		printf ( "ERROR - attempting to read from fifo when dr=0\n" );
+		return 0;
 	}
 
-	return ( c );
+	// check to see if this is the last byte in the current data
+	if ( readBuff + 1 == cacheBuff ) {
+		cacheBuff = 0;
+	}
+	printf ( "fifoRead: 0x%02x\n", fifoCache[readBuff] );
+
+	return fifoCache[readBuff++];
+
+
+	}
+
+uint8_t node_id = 0;
+static uint8_t rlp_sim_node_id(avr_t * avr, avr_io_addr_t addr, void * param)
+{
+	return node_id;
 }
 
 
@@ -153,7 +184,6 @@ int main(int argc, char *argv[])
 	uint32_t freq = 16000000;
 	int debug = 0;
 	int verbose = 0;
-	int node = 1;
 
 
 #if 0
@@ -174,7 +204,7 @@ int main(int argc, char *argv[])
 	while ( (c = getopt( argc, argv, "dvn:f:")) != -1) {
 		switch (c) {
 		case 'f':
-			printf ( "args: %s\n", optarg );
+			printf ( "filename arg: %s\n", optarg );
 			if (!strcmp(optarg + strlen(optarg) - 4, ".hex"))
 				strncpy(boot_path, optarg, sizeof(boot_path));
 			break;
@@ -185,7 +215,7 @@ int main(int argc, char *argv[])
 			verbose++;
 			break;
 		case 'n':
-			node = atoi(optarg);
+			node_id = (uint8_t) atoi(optarg);
 			break;
 		case '?':
 		default:
@@ -231,9 +261,11 @@ int main(int argc, char *argv[])
 
 
 	//... handle simulator
-	rlp_sim_fifo_init( node );
+	rlp_sim_fifo_init( node_id );
 	avr_register_io_write(avr, 0xff, rlp_sim_fifo_wr, NULL);
 	avr_register_io_read(avr, 0xfe, rlp_sim_fifo_rd, NULL);
+	avr_register_io_read(avr, 0xfd, rlp_sim_fifo_dr, NULL);
+	avr_register_io_read(avr, 0xfc, rlp_sim_node_id, NULL);
 
 
 	// even if not setup at startup, activate gdb if crashing
