@@ -110,7 +110,8 @@ static void rlp_sim_fifo_init( uint8_t nodeId ) {
 		mknod( rxPath, S_IFIFO | 0666, 0 );
 	}
 
-
+	printf ( "opening %s\n",txPath );
+	printf ( "opening %s\n",rxPath );
 	simTxfd = open( txPath, O_RDWR | O_NONBLOCK );
 	simRxfd = open( rxPath, O_RDWR | O_NONBLOCK );
 }
@@ -132,13 +133,13 @@ static const uint8_t msg1[] =
 
 static uint8_t rlp_sim_fifo_rd(avr_t * avr, avr_io_addr_t addr, void * param)
 {
-	uint8_t c;
+
+	uint8_t c = 0;
 	if ( mybuffer < sizeof(msg1) ) {
 		c = msg1[mybuffer++];
 		printf ( "Simulated fifo returned 0x%02x\n", c );
-	} else {
-		c = 0;
 	}
+
 	return ( c );
 }
 
