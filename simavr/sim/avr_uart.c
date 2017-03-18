@@ -115,7 +115,7 @@ avr_uart_rxc_raise(
 {
 	avr_uart_t * p = (avr_uart_t *)param;
 	if (avr_regbit_get(avr, p->rxen)) {
-		// rxc should be rased continiosly untill input buffer is empty
+		// rxc should be raised continuously until input buffer is empty
 		if (!uart_fifo_isempty(&p->input)) {
 			if (!avr_regbit_get(avr, p->rxc.raised)) {
 				p->rxc_raise_time = when;
@@ -194,7 +194,7 @@ avr_uart_read(
 		AVR_LOG(avr, LOG_TRACE, "UART%c: BUG: rxc raised with empty rx buffer\n", p->name);
 	}
 
-//	TRACE(printf("UART read %02x %s\n", v, uart_fifo_isempty(&p->input) ? "EMPTY!" : "");)
+	TRACE(printf("UART read %02x %s\n", v, uart_fifo_isempty(&p->input) ? "EMPTY!" : "");)
 	avr->data[addr] = v;
 	// made to trigger potential watchpoints
 	v = avr_core_watch_read(avr, addr);
@@ -227,12 +227,14 @@ avr_uart_baud_write(
 	const int databits[] = { 5,6,7,8,  /* 'reserved', assume 8 */8,8,8, 9 };
 	int db = databits[avr_regbit_get(avr, p->ucsz) | (avr_regbit_get(avr, p->ucsz2) << 2)];
 	int sb = 1 + avr_regbit_get(avr, p->usbs);
-	int word_size = 1 /* start */ + db /* data bits */ + 1 /* parity */ + sb /* stops */;
+//	int word_size = 1 /* start */ + db /* data bits */ + 1 /* parity */ + sb /* stops */;
 	int cycles_per_bit = (val+1)*8;
 	if (!avr_regbit_get(avr, p->u2x))
 		cycles_per_bit *= 2;
 	double baud = ((double)avr->frequency) / cycles_per_bit; // can be less than 1
-	p->cycles_per_byte = cycles_per_bit * word_size;
+//	p->cycles_per_byte = cycles_per_bit * word_size;
+	p->cycles_per_byte = avr_usec_to_cycles(avr, 100);
+
 
 	AVR_LOG(avr, LOG_TRACE, "UART: %c configured to %04x = %.4f bps (x%d), %d data %d stop\n",
 			p->name, val, baud, avr_regbit_get(avr, p->u2x)?2:1, db, sb);

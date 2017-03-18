@@ -111,7 +111,7 @@ uart_pty_flush_timer(
 }
 
 /*
- * Called when the uart has room in it's input buffer. This is called repeateadly
+ * Called when the uart has room in it's input buffer. This is called repeatedly
  * if necessary, while the xoff is called only when the uart fifo is FULL
  */
 static void
@@ -216,7 +216,7 @@ uart_pty_thread(
 				TRACE(if (!p->port[ti].tap) hdump("pty send", buffer, r);)
 			}
 		}
-		/* DO NOT call this, this create a concurency issue with the
+		/* DO NOT call this, this create a concurrency issue with the
 		 * FIFO that can't be solved cleanly with a memory barrier
 			uart_pty_flush_incoming(p);
 		  */
