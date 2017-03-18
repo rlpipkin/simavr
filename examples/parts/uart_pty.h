@@ -71,6 +71,7 @@ uart_pty_stop(uart_pty_t * p);
 void
 uart_pty_connect(
 		uart_pty_t * p,
-		char uart);
+		char uart,
+		int nodeId);
 
 #endif /* __UART_PTY_H___ */

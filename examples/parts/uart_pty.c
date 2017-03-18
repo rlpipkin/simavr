@@ -281,7 +281,8 @@ uart_pty_stop(
 void
 uart_pty_connect(
 		uart_pty_t * p,
-		char uart)
+		char uart,
+		int nodeId)
 {
 	// disable the stdio dump, as we are sending binary there
 	uint32_t f = 0;
@@ -314,7 +315,8 @@ uart_pty_connect(
 	}
 	if (getenv("SIMAVR_UART_XTERM") && atoi(getenv("SIMAVR_UART_XTERM"))) {
 		char cmd[256];
-		sprintf(cmd, "xterm -e picocom -b 115200 %s >/dev/null 2>&1 &",
+		sprintf(cmd, "Eterm -P  /home/rpipkin/backgrounds/%u.jpg@100x100+0+0:propscaled -e picocom -b 115200 %s >/dev/null 2>&1 &",
+				nodeId,
 				p->tap.slavename);
 		system(cmd);
 	} else

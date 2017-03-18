@@ -276,7 +276,7 @@ int main(int argc, char *argv[])
 	}
 
 	uart_pty_init(avr, &uart_pty);
-	uart_pty_connect(&uart_pty, '0');
+	uart_pty_connect(&uart_pty, '0', node_id);
 
 	while (1) {
 		int state = avr_run(avr);
