@@ -233,7 +233,7 @@ avr_uart_baud_write(
 		cycles_per_bit *= 2;
 	double baud = ((double)avr->frequency) / cycles_per_bit; // can be less than 1
 //	p->cycles_per_byte = cycles_per_bit * word_size;
-	p->cycles_per_byte = avr_usec_to_cycles(avr, 100);
+	p->cycles_per_byte = avr_usec_to_cycles(avr, 10);
 
 
 	AVR_LOG(avr, LOG_TRACE, "UART: %c configured to %04x = %.4f bps (x%d), %d data %d stop\n",
