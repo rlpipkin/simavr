@@ -315,7 +315,8 @@ uart_pty_connect(
 	}
 	if (getenv("SIMAVR_UART_XTERM") && atoi(getenv("SIMAVR_UART_XTERM"))) {
 		char cmd[256];
-		sprintf(cmd, "Eterm -P  /home/rpipkin/backgrounds/%u.jpg@100x100+0+0:propscaled -e picocom -b 115200 %s >/dev/null 2>&1 &",
+		sprintf(cmd, "Eterm -P  /home/rpipkin/backgrounds/%u.jpg@100x100+0+0:propscaled -e picocom -b 115200 --logfile %u %s >/dev/null 2>&1 &",
+				nodeId,
 				nodeId,
 				p->tap.slavename);
 		system(cmd);
