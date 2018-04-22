@@ -26,6 +26,16 @@
 extern "C" {
 #endif
 
+#ifndef __has_attribute
+	#define __has_attribute(x) 0
+#endif
+
+#if __has_attribute(fallthrough)
+	#define FALLTHROUGH __attribute__((fallthrough));
+#else
+	#define FALLTHROUGH
+#endif
+
 #include "sim_irq.h"
 #include "sim_interrupts.h"
 #include "sim_cmds.h"
@@ -149,6 +159,7 @@ typedef void (*avr_run_t)(
 typedef struct avr_t {
 	const char * 		mmcu;	// name of the AVR
 	// these are filled by sim_core_declare from constants in /usr/lib/avr/include/avr/io*.h
+	uint16_t			ioend;
 	uint16_t 			ramend;
 	uint32_t			flashend;
 	uint32_t			e2end;
@@ -190,6 +201,7 @@ typedef struct avr_t {
 	 * is passed on to the operating system.
 	 */
 	uint32_t 			sleep_usec;
+	uint64_t			time_base;	// for avr_get_time_stamp()
 
 	// called at init time
 	void (*init)(struct avr_t * avr);
@@ -464,6 +476,10 @@ uint32_t
 avr_pending_sleep_usec(
 		avr_t * avr,
 		avr_cycle_count_t howLong);
+/* Return the number of 'real time' spent since sim started, in uS */
+uint64_t
+avr_get_time_stamp(
+		avr_t * avr );
 
 #ifdef __cplusplus
 };
