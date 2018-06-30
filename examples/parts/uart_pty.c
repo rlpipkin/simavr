@@ -111,7 +111,7 @@ uart_pty_flush_timer(
 }
 
 /*
- * Called when the uart has room in it's input buffer. This is called repeateadly
+ * Called when the uart has room in it's input buffer. This is called repeatedly
  * if necessary, while the xoff is called only when the uart fifo is FULL
  */
 static void
@@ -218,7 +218,7 @@ uart_pty_thread(
 				TRACE(if (!p->port[ti].tap) hdump("pty send", buffer, r);)
 			}
 		}
-		/* DO NOT call this, this create a concurency issue with the
+		/* DO NOT call this, this create a concurrency issue with the
 		 * FIFO that can't be solved cleanly with a memory barrier
 			uart_pty_flush_incoming(p);
 		  */
@@ -283,7 +283,8 @@ uart_pty_stop(
 void
 uart_pty_connect(
 		uart_pty_t * p,
-		char uart)
+		char uart,
+		int nodeId)
 {
 	// disable the stdio dump, as we are sending binary there
 	uint32_t f = 0;
@@ -316,7 +317,9 @@ uart_pty_connect(
 	}
 	if (getenv("SIMAVR_UART_XTERM") && atoi(getenv("SIMAVR_UART_XTERM"))) {
 		char cmd[256];
-		sprintf(cmd, "xterm -e picocom -b 115200 %s >/dev/null 2>&1 &",
+		sprintf(cmd, "Eterm -P  /home/rpipkin/backgrounds/%u.jpg@100x100+0+0:propscaled -e picocom -b 115200 --logfile %u %s >/dev/null 2>&1 &",
+				nodeId,
+				nodeId,
 				p->tap.slavename);
 		system(cmd);
 	} else

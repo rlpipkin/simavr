@@ -56,8 +56,29 @@ int main()
 {
 	stdout = &mystdout;
 
-	printf("Bootloader properly programmed, and ran me! Huzzah!\n");
+	_SFR_MEM8 (0xFF) = 1;
 
+	_SFR_MEM8 (0xFF) = 10;
+
+	uint8_t readFromFifo = _SFR_MEM8 ( 0xFE );
+	printf ( "read %d from fifo\n", readFromFifo );
+
+	readFromFifo = _SFR_MEM8 ( 0xFE );
+	printf ( "read %d from fifo\n", readFromFifo );
+
+	readFromFifo = _SFR_MEM8 ( 0xFE );
+	printf ( "read %d from fifo\n", readFromFifo );
+
+	readFromFifo = _SFR_MEM8 ( 0xFE );
+	printf ( "read %d from fifo\n", readFromFifo );
+
+
+	for (;;) {
+		//printf("Bootloader properly programmed, and ran me! Huzzah!\n");
+		readFromFifo = _SFR_MEM8 ( 0xFE );
+		printf ( "read %d from fifo\n", readFromFifo );
+
+	}
 	// this quits the simulator, since interrupts are off
 	// this is a "feature" that allows running tests cases and exit
 	sleep_cpu();

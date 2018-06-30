@@ -92,6 +92,89 @@ void avr_special_deinit( avr_t* avr, void * data)
 	uart_pty_stop(&uart_pty);
 }
 
+int simTxfd = 0;
+int simRxfd = 0;
+static void rlp_sim_fifo_init( uint8_t nodeId ) {
+	char rxPath[80];
+	char txPath[80];
+
+	sprintf ( &rxPath[0], "/home/rpipkin/aprs/virtspoon/io/node%d-rx", nodeId );
+	sprintf ( &txPath[0], "/home/rpipkin/aprs/virtspoon/io/node%d-tx", nodeId );
+
+	struct stat tempbuffer;
+	if ( stat( txPath, &tempbuffer ) != 0 ) {
+		mknod( txPath, S_IFIFO | 0666, 0 );
+	}
+
+	if ( stat( rxPath, &tempbuffer ) != 0 ) {
+		mknod( rxPath, S_IFIFO | 0666, 0 );
+	}
+
+	printf ( "opening %s\n",txPath );
+	printf ( "opening %s\n",rxPath );
+	simTxfd = open( txPath, O_RDWR | O_NONBLOCK );
+	simRxfd = open( rxPath, O_RDWR | O_NONBLOCK );
+}
+
+static void rlp_sim_fifo_wr(avr_t * avr, avr_io_addr_t addr, uint8_t v, void * param)
+{
+	printf ( "Simulated fifo received 0x%02x : %c | 0x%02x : %c\n", v, v, v>>1,v>>1 );
+	write ( simTxfd, &v, 1 );
+}
+
+
+
+
+char fifoCache [ 2048 ];
+int cacheBuff = 0;
+int readBuff = 0;
+
+
+static uint8_t rlp_sim_fifo_dr(avr_t * avr, avr_io_addr_t addr, void * param)
+{
+	// to maintain first in first out we only read 1 group at a time to avoid managing a circular buffer
+	// if data is already pending just return data ready and don't go to the os fifo
+	if ( cacheBuff > 0) {
+		return 0xff;
+	}
+
+	// check for more data from the os
+	int retVal = read ( simRxfd, &fifoCache[cacheBuff], (2048 - cacheBuff));
+	if ( retVal > 0 ) {
+		cacheBuff = retVal;
+		readBuff = 0;
+		return 0xff;
+	}
+
+	// no data
+	return 0;
+}
+
+static uint8_t rlp_sim_fifo_rd(avr_t * avr, avr_io_addr_t addr, void * param)
+{
+	if ( cacheBuff == 0 ) {
+		printf ( "ERROR - attempting to read from fifo when dr=0\n" );
+		return 0;
+	}
+
+	// check to see if this is the last byte in the current data
+	if ( readBuff + 1 == cacheBuff ) {
+		cacheBuff = 0;
+	}
+	printf ( "fifoRead: 0x%02x\n", fifoCache[readBuff] );
+
+	return fifoCache[readBuff++];
+
+
+	}
+
+uint8_t node_id = 0;
+static uint8_t rlp_sim_node_id(avr_t * avr, avr_io_addr_t addr, void * param)
+{
+	return node_id;
+}
+
+
 int main(int argc, char *argv[])
 {
 	struct avr_flash flash_data;
@@ -102,6 +185,8 @@ int main(int argc, char *argv[])
 	int debug = 0;
 	int verbose = 0;
 
+
+#if 0
 	for (int i = 1; i < argc; i++) {
 		if (!strcmp(argv[i] + strlen(argv[i]) - 4, ".hex"))
 			strncpy(boot_path, argv[i], sizeof(boot_path));
@@ -114,6 +199,31 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 	}
+#else
+	int c;
+	while ( (c = getopt( argc, argv, "dvn:f:")) != -1) {
+		switch (c) {
+		case 'f':
+			printf ( "filename arg: %s\n", optarg );
+			if (!strcmp(optarg + strlen(optarg) - 4, ".hex"))
+				strncpy(boot_path, optarg, sizeof(boot_path));
+			break;
+		case 'd':
+			debug++;
+			break;
+		case 'v':
+			verbose++;
+			break;
+		case 'n':
+			node_id = (uint8_t) atoi(optarg);
+			break;
+		case '?':
+		default:
+			fprintf ( stderr, "%s: invalid argument %c\n", argv[0], (char) c );
+			exit(1);
+		}
+	}
+#endif
 
 	avr = avr_make_mcu_by_name(mmcu);
 	if (!avr) {
@@ -149,6 +259,15 @@ int main(int argc, char *argv[])
 	avr->codeend = avr->flashend;
 	avr->log = 1 + verbose;
 
+
+	//... handle simulator
+	rlp_sim_fifo_init( node_id );
+	avr_register_io_write(avr, 0xff, rlp_sim_fifo_wr, NULL);
+	avr_register_io_read(avr, 0xfe, rlp_sim_fifo_rd, NULL);
+	avr_register_io_read(avr, 0xfd, rlp_sim_fifo_dr, NULL);
+	avr_register_io_read(avr, 0xfc, rlp_sim_node_id, NULL);
+
+
 	// even if not setup at startup, activate gdb if crashing
 	avr->gdb_port = 1234;
 	if (debug) {
@@ -157,7 +276,7 @@ int main(int argc, char *argv[])
 	}
 
 	uart_pty_init(avr, &uart_pty);
-	uart_pty_connect(&uart_pty, '0');
+	uart_pty_connect(&uart_pty, '0', node_id);
 
 	while (1) {
 		int state = avr_run(avr);
