@@ -29,6 +29,11 @@
 #include <signal.h>
 #ifdef __APPLE__
 #include <util.h>
+#elif defined (__FreeBSD__)
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <termios.h>
+#include <libutil.h>
 #else
 #include <pty.h>
 #endif
@@ -175,8 +180,6 @@ uart_pty_thread(
 		struct timeval timo = { 0, 500 };
 		int ret = select(max+1, &read_set, &write_set, NULL, &timo);
 
-		if (!ret)
-			continue;
 		if (ret < 0)
 			break;
 
